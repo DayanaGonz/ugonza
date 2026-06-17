@@ -282,10 +282,6 @@ function renderLineItems() {
     <article class="line-card" data-id="${line.id}">
       <div class="line-card-head">
         <span class="line-number">${index + 1}</span>
-        <div class="actions">
-          <button class="btn secondary" type="button" data-action="duplicate-line" data-id="${line.id}">Duplicar</button>
-          <button class="btn danger" type="button" data-action="delete-line" data-id="${line.id}">Eliminar</button>
-        </div>
       </div>
       <div class="line-grid">
         ${selectField("tipo", "Tipo", TYPES, line.tipo)}
@@ -318,6 +314,11 @@ function renderLineItems() {
         </label>
         <div class="line-subtotal" data-subtotal="${line.id}">${formatMoney(subtotal, currentQuote.moneda)}</div>
       </div>
+      <div class="line-actions">
+        <button class="btn secondary small" type="button" data-action="insert-line" data-id="${line.id}">Agregar debajo</button>
+        <button class="btn secondary small" type="button" data-action="duplicate-line" data-id="${line.id}">Duplicar</button>
+        <button class="btn danger small" type="button" data-action="delete-line" data-id="${line.id}">Eliminar</button>
+      </div>
     </article>
   `;
   }).join("");
@@ -349,6 +350,9 @@ function handleLineAction(event) {
   if (event.target.dataset.action === "delete-line") {
     if (currentQuote.partidas.length === 1) return toast("Debe existir al menos una partida.");
     currentQuote.partidas = currentQuote.partidas.filter((line) => line.id !== id);
+  } else if (event.target.dataset.action === "insert-line") {
+    const line = currentQuote.partidas.find((item) => item.id === id);
+    currentQuote.partidas.splice(currentQuote.partidas.indexOf(line) + 1, 0, createLine({ moneda: line.moneda || currentQuote.moneda }));
   } else {
     const line = currentQuote.partidas.find((item) => item.id === id);
     currentQuote.partidas.splice(currentQuote.partidas.indexOf(line) + 1, 0, { ...line, id: crypto.randomUUID() });
