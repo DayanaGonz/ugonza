@@ -11,7 +11,8 @@ Esta app no necesita instalación ni compilación. Es un sitio estático.
    - `index.html`
    - `styles.css`
    - `app.js`
-   - `assets/`
+   - `logo.png`
+   - `pdf-lib.min.js`
    - `.nojekyll`
    - `README.md`
 3. Entrar a `Settings > Pages`.
@@ -58,4 +59,3 @@ Ventaja: varios usuarios pueden compartir historial y trabajar con datos central
 No subas tokens reales al repositorio.
 
 En esta versión, los campos de correo y token BCCR se guardan localmente en el navegador del usuario. Para producción, lo ideal es mover esa consulta a un backend.
-

@@ -706,7 +706,7 @@ function renderPreview() {
   $("#preview").innerHTML = `
     <div class="doc-header">
       <div class="doc-brand">
-        <img src="assets/logo.png" alt="UGONZA Construcciones" />
+        <img src="logo.png" alt="UGONZA Construcciones" />
         <div>
           <strong>${COMPANY.representative}</strong><br />
           Representante<br />
@@ -808,7 +808,7 @@ async function buildPdf(q) {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const logoBytes = await fetch("assets/logo.png").then((res) => res.arrayBuffer());
+  const logoBytes = await fetch("logo.png").then((res) => res.arrayBuffer());
   const logo = await pdf.embedPng(logoBytes);
   const totals = getTotals(q);
   const pageSize = [595.28, 841.89];

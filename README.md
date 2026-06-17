@@ -71,6 +71,5 @@ La consulta automática al BCCR requiere correo y token de suscripción. En una 
 - `index.html`: estructura de la aplicación.
 - `styles.css`: diseño responsive y estilos del PDF preview.
 - `app.js`: lógica de presupuestos, clientes, cálculos y PDF.
-- `assets/logo.png`: logo corporativo.
-- `assets/pdf-lib.min.js`: librería local para generar PDF.
-
+- `logo.png`: logo corporativo.
+- `pdf-lib.min.js`: librería local para generar PDF.
