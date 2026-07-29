@@ -840,30 +840,35 @@ async function buildPdf(q) {
   }
 
   function drawHeader(reduced) {
-    page.drawImage(logo, { x: margin, y: y - (reduced ? 42 : 78), width: reduced ? 60 : 95, height: reduced ? 60 : 95 });
-    text(COMPANY.representative, margin + (reduced ? 76 : 112), y - 16, 10, { bold: true });
-    text("Representante", margin + (reduced ? 76 : 112), y - 30, 9, { color: gray });
-    text(`Cédula jurídica: ${COMPANY.id}`, margin + (reduced ? 76 : 112), y - 48, 9);
+    const top = y;
+    const logoSize = reduced ? 54 : 88;
+    page.drawImage(logo, { x: margin, y: top - logoSize + 4, width: logoSize, height: logoSize });
+    text(COMPANY.representative, margin + logoSize + 24, top - 22, 10, { bold: true });
+    text("Representante", margin + logoSize + 24, top - 36, 8.5, { color: gray });
+    text(`Cédula jurídica: ${COMPANY.id}`, margin + logoSize + 24, top - 54, 8.5);
     if (!reduced) {
-      text(COMPANY.phone, margin + 112, y - 64, 9);
-      text(COMPANY.email, margin + 112, y - 80, 9);
+      text(COMPANY.phone, margin + logoSize + 24, top - 70, 8.5);
+      text(COMPANY.email, margin + logoSize + 24, top - 86, 8.5);
     }
-    text("PRESUPUESTO", 470, y - 12, 16, { bold: true, color: teal });
-    lineDraw(470, y - 20, 560, y - 20, gray);
-    page.drawRectangle({ x: 398, y: y - 58, width: 88, height: 24, color: teal, borderRadius: 3 });
-    text(q.consecutivo, 414, y - 51, 11, { bold: true, color: rgb(1, 1, 1) });
-    text(q.fecha, 500, y - 47, 9);
+    text("PRESUPUESTO", 452, top - 18, 16, { bold: true, color: teal });
+    lineDraw(452, top - 26, 560, top - 26, gray);
+    page.drawRectangle({ x: 382, y: top - 66, width: 98, height: 28, color: teal, borderRadius: 3 });
+    text(q.consecutivo, 398, top - 56, 11, { bold: true, color: rgb(1, 1, 1) });
+    text(q.fecha, 494, top - 56, 8.5);
     if (!reduced) {
       const labels = [["Fecha de emisión", q.fecha], ["Válido hasta", q.validoHasta], ["Condición de pago", q.condicionPago], ["Moneda", q.moneda === "CRC" ? "Colones" : "Dólares"], ["TC venta", q.tipoCambio || "-"], ["IVA", ivaLabel(q)]];
-      labels.forEach(([label, value], i) => {
-        text(`${label}:`, 360, y - 91 - i * 17, 9, { bold: true });
-        text(value, 464, y - 91 - i * 17, 9);
+      let infoY = top - 104;
+      labels.forEach(([label, value]) => {
+        text(`${label}:`, 346, infoY, 8.2, { bold: true });
+        text(value, 458, infoY, 8.2);
+        infoY -= 14;
       });
-      lineDraw(margin, y - 150, 562, y - 150, gray);
-      y -= 166;
+      const headerBottom = Math.min(top - 196, infoY - 8);
+      lineDraw(margin, headerBottom, 562, headerBottom, gray);
+      y = headerBottom - 22;
     } else {
-      lineDraw(margin, y - 70, 562, y - 70, gray);
-      y -= 84;
+      lineDraw(margin, top - 84, 562, top - 84, gray);
+      y = top - 100;
     }
   }
 
@@ -887,81 +892,91 @@ async function buildPdf(q) {
     return lines;
   }
 
-  function boxedInfo(title, x, yy, w, rows) {
-    page.drawRectangle({ x, y: yy - 92, width: w, height: 92, borderColor: line, borderWidth: 1 });
+  function measureBox(w, rows) {
+    const labelW = 82;
+    const valueW = w - labelW - 22;
+    const rowBlocks = rows.map(([label, value]) => ({
+      label,
+      value,
+      lines: wrap(value, valueW, 8.2).slice(0, 5),
+    }));
+    const rowHeights = rowBlocks.map((row) => Math.max(15, row.lines.length * 10 + 4));
+    const height = 34 + rowHeights.reduce((sum, rowH) => sum + rowH, 0) + 10;
+    return { rowBlocks, rowHeights, height };
+  }
+
+  function drawBox(title, x, yy, w, measured, height) {
+    const labelW = 82;
+    page.drawRectangle({ x, y: yy - height, width: w, height, borderColor: line, borderWidth: 1 });
     text(title, x + 10, yy - 18, 10, { bold: true, color: teal });
-    rows.forEach(([label, value], i) => {
-      text(`${label}:`, x + 10, yy - 36 - i * 14, 8.5, { bold: true });
-      wrap(value, w - 120, 8.5).slice(0, 2).forEach((row, j) => text(row, x + 95, yy - 36 - i * 14 - j * 10, 8.5));
+    let cursor = yy - 36;
+    measured.rowBlocks.forEach((row, i) => {
+      text(`${row.label}:`, x + 10, cursor, 8.2, { bold: true });
+      row.lines.forEach((lineText, j) => text(lineText, x + 10 + labelW, cursor - j * 10, 8.2));
+      cursor -= measured.rowHeights[i];
     });
   }
 
   newPage(false);
-  boxedInfo("DATOS DEL CLIENTE", margin, y, 250, [
+  const clientBox = measureBox(250, [
     ["Cliente", q.clienteManual.nombre],
     ["Cédula", q.clienteManual.cedula],
     ["Contacto", q.clienteManual.contacto],
     ["Teléfono", q.clienteManual.telefono],
     ["Correo", q.clienteManual.correo],
   ]);
-  boxedInfo("DATOS DEL PROYECTO", 306, y, 255, [
+  const projectBox = measureBox(255, [
     ["Proyecto", q.proyecto],
     ["Lugar", q.lugarProyecto],
     ["Descripción", q.descripcionGeneral],
     ["Pago", q.condicionPago],
     ["Validez", `${q.validezDias || 15} días naturales`],
   ]);
-  y -= 110;
+  const boxH = Math.max(clientBox.height, projectBox.height);
+  drawBox("DATOS DEL CLIENTE", margin, y, 250, clientBox, boxH);
+  drawBox("DATOS DEL PROYECTO", 306, y, 255, projectBox, boxH);
+  y -= boxH + 20;
 
   const cols = [
-    [margin, 24, "#"],
-    [58, 176, "Descripción"],
-    [236, 72, "Tipo"],
-    [310, 50, "Unidad"],
-    [362, 52, "Cant."],
-    [416, 70, "P. unitario"],
-    [488, 58, "Subtotal"],
-    [548, 28, "IVA"],
+    [margin, 23, "#"],
+    [57, 187, "Descripción"],
+    [244, 69, "Tipo"],
+    [313, 47, "Unidad"],
+    [360, 38, "Cant."],
+    [398, 72, "P. unitario"],
+    [470, 72, "Subtotal"],
+    [542, 19, "IVA"],
   ];
   function tableHeader() {
     ensure(26);
-    page.drawRectangle({ x: margin, y: y - 22, width: 527, height: 22, color: teal });
-    cols.forEach(([x, , label]) => text(label, x + 4, y - 15, 8, { bold: true, color: rgb(1, 1, 1) }));
+    page.drawRectangle({ x: margin, y: y - 22, width: pageSize[0] - margin * 2, height: 22, color: teal });
+    cols.forEach(([x, , label]) => text(label, x + 4, y - 15, 7.6, { bold: true, color: rgb(1, 1, 1) }));
     y -= 22;
   }
   tableHeader();
   totals.lines.forEach((lineItem) => {
-    const desc = wrap(lineItem.descripcion, 168, 7.6);
-    const type = wrap(lineItem.tipo, 64, 7.4);
-    const rowH = Math.max(32, Math.max(desc.length, type.length) * 10 + 12);
+    const desc = wrap(lineItem.descripcion, cols[1][1] - 10, 7.2);
+    const type = wrap(lineItem.tipo, cols[2][1] - 8, 7.1);
+    const rowH = Math.max(36, Math.max(desc.length, type.length) * 9.8 + 16);
     ensure(rowH + 6);
-    if (y > pageSize[1] - 130) tableHeader();
-    page.drawRectangle({ x: margin, y: y - rowH, width: 527, height: rowH, borderColor: line, borderWidth: 0.6 });
-    cols.slice(1).forEach(([x]) => lineDraw(x - 2, y, x - 2, y - rowH, line, 0.6));
-    text(lineItem.numero, margin + 6, y - 14, 7.8);
-    desc.forEach((row, i) => text(row, 62, y - 14 - i * 9.5, 7.6));
-    type.forEach((row, i) => text(row, 240, y - 14 - i * 9.5, 7.4));
-    text(lineItem.unidad, 314, y - 14, 7.6);
-    text(Number(lineItem.cantidad).toFixed(2), 368, y - 14, 7.6);
-    text(formatPdfMoney(lineItem.precioUnitario, lineItem.moneda), 420, y - 14, 7.4);
-    text(formatPdfMoney(lineItem.subtotal, q.moneda), 492, y - 14, 7.4);
-    text(lineIvaLabel(q, lineItem), 552, y - 14, 7.4);
+    page.drawRectangle({ x: margin, y: y - rowH, width: pageSize[0] - margin * 2, height: rowH, borderColor: line, borderWidth: 0.6 });
+    cols.slice(1).forEach(([x]) => lineDraw(x, y, x, y - rowH, line, 0.6));
+    text(lineItem.numero, cols[0][0] + 7, y - 15, 7.3);
+    desc.forEach((row, i) => text(row, cols[1][0] + 4, y - 15 - i * 9.3, 7.2));
+    type.forEach((row, i) => text(row, cols[2][0] + 4, y - 15 - i * 9.2, 7.1));
+    text(lineItem.unidad, cols[3][0] + 4, y - 15, 7.1);
+    text(Number(lineItem.cantidad).toFixed(2), cols[4][0] + 4, y - 15, 7.1);
+    text(formatPdfMoney(lineItem.precioUnitario, lineItem.moneda), cols[5][0] + 4, y - 15, 6.5);
+    text(formatPdfMoney(lineItem.subtotal, q.moneda), cols[6][0] + 4, y - 15, 6.5);
+    text(lineIvaLabel(q, lineItem), cols[7][0] + 4, y - 15, 6.8);
     y -= rowH;
   });
 
-  ensure(230);
-  const leftX = margin;
-  const rightX = 326;
-  text("OBSERVACIONES", leftX, y - 16, 10, { bold: true, color: teal });
-  drawParagraph(q.observaciones, leftX, y - 32, 255, 8);
-  y = Math.min(y - 88, y);
-  text("CONDICIONES Y TÉRMINOS", leftX, y - 16, 10, { bold: true, color: teal });
-  y = drawParagraph(q.terminos, leftX, y - 32, 260, 7.5) - 8;
-  text("FORMA DE PAGO", leftX, y - 14, 10, { bold: true, color: teal });
-  drawParagraph(q.formaPago, leftX, y - 30, 260, 8);
+  y -= 18;
+  drawSection("OBSERVACIONES", q.observaciones, margin, pageSize[0] - margin * 2, 8);
+  drawSection("CONDICIONES Y TÉRMINOS", q.terminos, margin, pageSize[0] - margin * 2, 7.3, { centeredTitle: true, justify: true });
+  drawSection("FORMA DE PAGO", q.formaPago, margin, pageSize[0] - margin * 2, 8);
 
-  let sy = Math.min(page.getY?.() || 999, y + 180);
-  sy = Math.max(176, sy);
   const summaryRows = [
     ["Total materiales", totals.categories.Material],
     ["Total mano de obra", totals.categories["Mano de obra"]],
@@ -971,39 +986,79 @@ async function buildPdf(q) {
   ];
   if (totals.discount > 0) summaryRows.push(["Descuento", -totals.discount]);
   summaryRows.push(q.ivaModo === "included" ? ["IVA", "Incluido en precios"] : [`IVA (${q.ivaPorcentaje}%)`, totals.tax]);
-  page.drawRectangle({ x: rightX, y: sy - 22 * (summaryRows.length + 1) - 78, width: 235, height: 22 * (summaryRows.length + 1) + 78, borderColor: line, borderWidth: 1 });
+  const summaryW = 250;
+  const rightX = pageSize[0] - margin - summaryW;
+  const summaryH = 22 * (summaryRows.length + 1) + 82;
+  const signatureH = 114;
+  if (y - Math.max(summaryH, signatureH) < margin + 42) newPage(true);
+  let sy = y;
+  const signX = margin;
+  const signW = rightX - margin - 24;
+  lineDraw(signX + 34, sy - 74, signX + signW - 34, sy - 74, gray, 0.8);
+  text(COMPANY.representative, signX + 58, sy - 88, 8.5, { bold: true });
+  text("Representante", signX + 84, sy - 101, 8);
+  text(`${COMPANY.name} · Cédula jurídica: ${COMPANY.id}`, signX + 16, sy - 114, 7.7);
+
+  page.drawRectangle({ x: rightX, y: sy - summaryH, width: summaryW, height: summaryH, borderColor: line, borderWidth: 1 });
   summaryRows.forEach(([label, value], i) => {
     const yy = sy - 18 - i * 22;
-    text(label, rightX + 10, yy, 8.5, { bold: label === "Subtotal" });
-    text(typeof value === "number" ? formatPdfMoney(value, q.moneda) : value, rightX + 128, yy, 8.5, { bold: label === "Subtotal" });
-    lineDraw(rightX, yy - 6, rightX + 235, yy - 6, line, 0.5);
+    text(label, rightX + 10, yy, 8.2, { bold: label === "Subtotal" });
+    text(typeof value === "number" ? formatPdfMoney(value, q.moneda) : value, rightX + 134, yy, 8.2, { bold: label === "Subtotal" });
+    lineDraw(rightX, yy - 6, rightX + summaryW, yy - 6, line, 0.5);
   });
   const totalY = sy - 18 - summaryRows.length * 22;
-  page.drawRectangle({ x: rightX, y: totalY - 8, width: 235, height: 24, color: teal });
+  page.drawRectangle({ x: rightX, y: totalY - 8, width: summaryW, height: 24, color: teal });
   text("TOTAL GENERAL", rightX + 10, totalY, 10, { bold: true, color: rgb(1, 1, 1) });
-  text(formatPdfMoney(totals.total, q.moneda), rightX + 128, totalY, 10, { bold: true, color: rgb(1, 1, 1) });
+  text(formatPdfMoney(totals.total, q.moneda), rightX + 134, totalY, 10, { bold: true, color: rgb(1, 1, 1) });
   text("Monto en letras:", rightX + 10, totalY - 32, 8.5, { bold: true });
-  drawParagraph(amountInWords(totals.total, q.moneda), rightX + 10, totalY - 48, 210, 8);
-
-  const signY = margin + 58;
-  text("Atentamente,", 245, signY + 36, 8.5);
-  lineDraw(218, signY + 12, 378, signY + 12, gray, 0.8);
-  text(COMPANY.representative, 243, signY, 8.5, { bold: true });
-  text("Representante", 264, signY - 12, 8);
-  text(`${COMPANY.name} · Cédula jurídica: ${COMPANY.id}`, 202, signY - 24, 8);
+  drawParagraph(amountInWords(totals.total, q.moneda), rightX + 10, totalY - 48, summaryW - 20, 8);
+  y = sy - Math.max(summaryH, signatureH) - 22;
   text(state.settings.footerPhrase, 218, 18, 8, { color: gray });
 
-  function drawParagraph(value, x, yy, width, size) {
+  function drawSection(title, value, x, width, size, opts = {}) {
+    const estimated = 28 + sectionLineCount(value, width, size) * (size + 4);
+    ensure(Math.min(estimated, 180));
+    const titleX = opts.centeredTitle ? x + (width - bold.widthOfTextAtSize(title, 10)) / 2 : x;
+    text(title, titleX, y - 12, 10, { bold: true, color: teal });
+    lineDraw(x, y - 18, x + width, y - 18, line, 0.6);
+    y = drawParagraph(value, x, y - 34, width, size, opts.justify) - 8;
+  }
+
+  function sectionLineCount(value, width, size) {
+    return String(value || "").split("\n").filter(Boolean).reduce((count, para) => count + wrap(para, width, size).length + 1, 0);
+  }
+
+  function drawParagraph(value, x, yy, width, size, justify = false) {
     let cursor = yy;
     String(value || "").split("\n").filter(Boolean).forEach((para) => {
-      wrap(para, width, size).forEach((row) => {
-        ensure(18);
-        text(row, x, cursor, size);
+      const rows = wrap(para, width, size);
+      rows.forEach((row, i) => {
+        if (cursor - (size + 4) < margin + 38) {
+          newPage(true);
+          cursor = y;
+        }
+        if (justify && i < rows.length - 1) drawJustifiedLine(row, x, cursor, width, size);
+        else text(row, x, cursor, size);
         cursor -= size + 3;
       });
-      cursor -= 4;
+      cursor -= 6;
     });
     return cursor;
+  }
+
+  function drawJustifiedLine(row, x, yy, width, size) {
+    const words = row.split(/\s+/).filter(Boolean);
+    if (words.length < 4) {
+      text(row, x, yy, size);
+      return;
+    }
+    const wordsWidth = words.reduce((sum, word) => sum + font.widthOfTextAtSize(pdfSafe(word), size), 0);
+    const gap = Math.min(5, Math.max(2.2, (width - wordsWidth) / (words.length - 1)));
+    let cursor = x;
+    words.forEach((word) => {
+      text(word, cursor, yy, size);
+      cursor += font.widthOfTextAtSize(pdfSafe(word), size) + gap;
+    });
   }
 
   const bytes = await pdf.save();
