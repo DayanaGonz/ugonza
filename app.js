@@ -66,6 +66,12 @@ const settingsForm = $("#settingsForm");
 
 function defaultSettings() {
   return {
+    companyName: COMPANY.name,
+    companyRepresentative: COMPANY.representative,
+    companyId: COMPANY.id,
+    companyPhone: COMPANY.phone,
+    companyEmail: COMPANY.email,
+    companyLocation: COMPANY.location,
     prefix: "UG",
     nextNumber: 1,
     defaultValidity: 15,
@@ -74,6 +80,17 @@ function defaultSettings() {
     bccrEmail: "",
     bccrToken: "",
     footerPhrase: "Construimos confianza, entregamos calidad.",
+  };
+}
+
+function companyInfo() {
+  return {
+    name: state.settings.companyName || COMPANY.name,
+    representative: state.settings.companyRepresentative || COMPANY.representative,
+    id: state.settings.companyId || COMPANY.id,
+    phone: state.settings.companyPhone || COMPANY.phone,
+    email: state.settings.companyEmail || COMPANY.email,
+    location: state.settings.companyLocation || COMPANY.location,
   };
 }
 
@@ -642,6 +659,12 @@ function renderSettings() {
 function saveSettings() {
   const values = Object.fromEntries(new FormData(settingsForm).entries());
   state.settings = {
+    companyName: values.companyName || COMPANY.name,
+    companyRepresentative: values.companyRepresentative || COMPANY.representative,
+    companyId: values.companyId || COMPANY.id,
+    companyPhone: values.companyPhone || COMPANY.phone,
+    companyEmail: values.companyEmail || COMPANY.email,
+    companyLocation: values.companyLocation || COMPANY.location,
     prefix: values.prefix || "UG",
     nextNumber: Number(values.nextNumber || 1),
     defaultValidity: Number(values.defaultValidity || 15),
@@ -707,16 +730,17 @@ async function fetchBccrSaleRate(dateString, email, token) {
 function renderPreview() {
   const q = currentQuote;
   const totals = getTotals(q);
+  const company = companyInfo();
   $("#preview").innerHTML = `
     <div class="doc-header">
       <div class="doc-brand">
         <img src="logo.png" alt="UGONZA Construcciones" />
         <div>
-          <strong>${COMPANY.representative}</strong><br />
+          <strong>${escapeHtml(company.representative)}</strong><br />
           Representante<br />
-          Cédula jurídica: ${COMPANY.id}<br />
-          ${COMPANY.phone}<br />
-          ${COMPANY.email}
+          Cédula jurídica: ${escapeHtml(company.id)}<br />
+          ${escapeHtml(company.phone)}<br />
+          ${escapeHtml(company.email)}
         </div>
       </div>
       <div class="doc-title">
@@ -753,7 +777,6 @@ function renderPreview() {
     <div class="preview-lower">
       <div>
         <div class="doc-box"><h3>Observaciones</h3>${paragraphs(q.observaciones)}</div>
-        <div class="doc-box"><h3>Condiciones y términos</h3>${paragraphs(q.terminos)}</div>
         <div class="doc-box"><h3>Forma de pago</h3>${paragraphs(q.formaPago)}</div>
       </div>
       <div class="doc-box">
@@ -761,9 +784,10 @@ function renderPreview() {
         ${summaryPreviewRows(totals, q)}
         <div class="summary-total"><span>Total general</span><strong>${formatMoney(totals.total, q.moneda)}</strong></div>
         <p><strong>Monto en letras:</strong><br />${amountInWords(totals.total, q.moneda)}</p>
-        <p style="margin-top:36px;text-align:center;">Atentamente,<br /><br />____________________________<br /><strong>${COMPANY.representative}</strong><br />Representante<br />${COMPANY.name}<br />Cédula jurídica: ${COMPANY.id}</p>
+        <p style="margin-top:54px;text-align:center;">____________________________<br /><strong>${escapeHtml(company.representative)}</strong><br />Representante<br />${escapeHtml(company.name)}<br />Cédula jurídica: ${escapeHtml(company.id)}</p>
       </div>
     </div>
+    <div class="doc-box"><h3>Condiciones y términos</h3>${paragraphs(q.terminos)}</div>
   `;
 }
 
@@ -815,6 +839,7 @@ async function buildPdf(q) {
   const logoBytes = await fetch("logo.png").then((res) => res.arrayBuffer());
   const logo = await pdf.embedPng(logoBytes);
   const totals = getTotals(q);
+  const company = companyInfo();
   const pageSize = [595.28, 841.89];
   const margin = 34;
   const teal = rgb(0, 0.29, 0.33);
@@ -843,12 +868,12 @@ async function buildPdf(q) {
     const top = y;
     const logoSize = reduced ? 54 : 88;
     page.drawImage(logo, { x: margin, y: top - logoSize + 4, width: logoSize, height: logoSize });
-    text(COMPANY.representative, margin + logoSize + 24, top - 22, 10, { bold: true });
+    text(company.representative, margin + logoSize + 24, top - 22, 10, { bold: true });
     text("Representante", margin + logoSize + 24, top - 36, 8.5, { color: gray });
-    text(`Cédula jurídica: ${COMPANY.id}`, margin + logoSize + 24, top - 54, 8.5);
+    text(`Cédula jurídica: ${company.id}`, margin + logoSize + 24, top - 54, 8.5);
     if (!reduced) {
-      text(COMPANY.phone, margin + logoSize + 24, top - 70, 8.5);
-      text(COMPANY.email, margin + logoSize + 24, top - 86, 8.5);
+      text(company.phone, margin + logoSize + 24, top - 70, 8.5);
+      text(company.email, margin + logoSize + 24, top - 86, 8.5);
     }
     text("PRESUPUESTO", 452, top - 18, 16, { bold: true, color: teal });
     lineDraw(452, top - 26, 560, top - 26, gray);
@@ -974,7 +999,6 @@ async function buildPdf(q) {
 
   y -= 18;
   drawSection("OBSERVACIONES", q.observaciones, margin, pageSize[0] - margin * 2, 8);
-  drawSection("CONDICIONES Y TÉRMINOS", q.terminos, margin, pageSize[0] - margin * 2, 7.3, { centeredTitle: true, justify: true });
   drawSection("FORMA DE PAGO", q.formaPago, margin, pageSize[0] - margin * 2, 8);
 
   const summaryRows = [
@@ -995,9 +1019,9 @@ async function buildPdf(q) {
   const signX = margin;
   const signW = rightX - margin - 24;
   lineDraw(signX + 34, sy - 74, signX + signW - 34, sy - 74, gray, 0.8);
-  text(COMPANY.representative, signX + 58, sy - 88, 8.5, { bold: true });
+  text(company.representative, signX + 58, sy - 88, 8.5, { bold: true });
   text("Representante", signX + 84, sy - 101, 8);
-  text(`${COMPANY.name} · Cédula jurídica: ${COMPANY.id}`, signX + 16, sy - 114, 7.7);
+  text(`${company.name} · Cédula jurídica: ${company.id}`, signX + 16, sy - 114, 7.7);
 
   page.drawRectangle({ x: rightX, y: sy - summaryH, width: summaryW, height: summaryH, borderColor: line, borderWidth: 1 });
   summaryRows.forEach(([label, value], i) => {
@@ -1013,6 +1037,7 @@ async function buildPdf(q) {
   text("Monto en letras:", rightX + 10, totalY - 32, 8.5, { bold: true });
   drawParagraph(amountInWords(totals.total, q.moneda), rightX + 10, totalY - 48, summaryW - 20, 8);
   y = sy - Math.max(summaryH, signatureH) - 22;
+  drawSection("CONDICIONES Y TÉRMINOS", q.terminos, margin, pageSize[0] - margin * 2, 7.3, { centeredTitle: true, justify: true });
   text(state.settings.footerPhrase, 218, 18, 8, { color: gray });
 
   function drawSection(title, value, x, width, size, opts = {}) {
